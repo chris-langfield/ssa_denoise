@@ -4,4 +4,8 @@ Singular spectrum analysis is a denoising and signal reconstruction technique th
 
 Examples wfs: https://drive.google.com/file/d/17Ha9FIp-gk4R0iWA4F95S6Qfc7hB_pgG/view?usp=drive_link
 
+The file above has preprocessed waveforms for 13 datasets (10 units per dataset, 500 waveforms per unit).
+
+So e.g. `arr[:500, :, :]` will give you the waveforms from the 1st unit of the 1st dataset. `arr[9*500:10*500,:,:]` the 10th unit of the 1st waveform etc
+
 `Shape = (500*13*10, 121, 40)`
