@@ -1,6 +1,9 @@
 import numpy as np
 from pathlib import Path
 from ssa_denoise import *
+import matplotlib.pyplot as plt
+from tqdm import trange
+
 
 def trace_plot(arr, ax, channel_range=None, spike_range=None, title=""):
     if spike_range is None:
@@ -18,15 +21,14 @@ def trace_plot(arr, ax, channel_range=None, spike_range=None, title=""):
                 (0.4 + all_norms[i], 0.3 + 0.4*all_norms[i], 0.3 + all_norms[i], .7))
     ax.set_title(title)
 
-data_path = Path("local/data/path")
+data_path = Path("/Users/chris/Downloads")
 raw_waveforms = np.load(data_path.joinpath("benchmark_wfs.npy"))
 
 bump4 = flattop_gauss((121, 40), 1000, 200, 4, 4, shift=(-15,0))
 bump2 = flattop_gauss((121, 40), 32, 20, 2, 2, shift=(-20,0))
 r = 5
 freq_range = (0, 8000)
-from tqdm import trange
-for i in trange(1000):
+for i in trange(10):
     raw = raw_waveforms[i, :, :].T
     arr, svd_u, svd_s, svd_v, e = denoise_wf(raw * bump4, r, freq_range)
     fig, ax = plt.subplots(2,2)
