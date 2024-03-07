@@ -30,7 +30,7 @@ bump0 = np.ones((40, 121))
 r = 5
 freq_range = (0, 8000)
 
-for i in trange(20):
+for i in trange(10000):
     raw = raw_waveforms[i, :, :].T
     arr, svd_u, svd_s, svd_v, e = denoise_wf(raw * bump0, r, freq_range)
     fig, ax = plt.subplots(2,2)
@@ -82,10 +82,10 @@ for i in trange(5000):
     svd_vecs[:, i] = svd_s.flatten().astype(np.float32)
 
 realspace_trunc = np.zeros((33*16, 5000), np.float32)
-for i in trange(20):
+for i in trange(6, 9):
     raw = raw_waveforms[500*i, :, :].T
     arr, svd_u, svd_s, svd_v, e = denoise_wf(raw * bump0, r, freq_range)
-    plt.matshow(reconstruct_from_svd_clip(svd_u, svd_s, svd_v).astype(np.float32))
+    plt.matshow(reconstruct_from_svd_clip(svd_u, svd_s, svd_v).astype(np.float32).T, cmap="gray")
 
 from scipy.spatial import distance_matrix
 n_units = 10
@@ -129,3 +129,43 @@ from sklearn.metrics.cluster import contingency_matrix, pair_confusion_matrix
 adjusted_rand_score(ground_truth_labels, kmeans.labels_)
 adjusted_mutual_info_score(ground_truth_labels, kmeans.labels_)
 conting = contingency_matrix(ground_truth_labels, kmeans.labels_)
+
+
+# generate the stack of hankel traj matrices
+def hank_stack(w):
+    ntr, ns = w.shape
+    L = int(ntr // 2)
+    K = int(ntr - L)
+
+    W = np.fft.rfft(w)
+    freqs = np.fft.rfftfreq(ns, d=1/30_000)
+
+    hanks = np.stack([hank_mat(W, f, L, K) for f in range(0, len(freqs))])
+    return hanks
+
+i = 10
+raw = raw_waveforms[i,:,:].T
+arr, _, _, _, _ = denoise_wf(raw, 5, [0, 8000])
+
+hanks = np.abs(hank_stack(raw))
+fig, ax = plt.subplots()
+ax.set_yticks([])
+ax.set_xticks([])
+ax.imshow(raw, cmap="gray")
+ax.imshow(arr, cmap="gray")
+ax.imshow(np.abs(np.fft.rfft(raw)), cmap="gray")
+
+fig, ax = plt.subplots()
+trace_plot(np.flipud(raw).T *5e4, ax, np.arange(40), np.arange(121))
+fig, ax = plt.subplots()
+trace_plot(np.flipud(arr).T *5e4, ax, np.arange(39), np.arange(120))
+
+freqs = np.fft.rfftfreq(121, d=1/30_000).astype(int)
+fig, ax = plt.subplots(4, 4)
+for i in range(4):
+    for j in range(4):
+        ax[i, j].matshow(hanks[4*i + j % 4], cmap="gray")
+        ax[i, j].set_yticks([])
+        ax[i, j].set_xticks([])
+        ax[i, j].set_title(f"{freqs[4*i + j %4]} Hz")
+fig.tight_layout()

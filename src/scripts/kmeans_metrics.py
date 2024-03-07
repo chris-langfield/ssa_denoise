@@ -81,7 +81,7 @@ class Fingerprinter:
         kmeans.fit_predict(distance_matrix)
         return kmeans.labels_
     
-    def run(self, cluster_plots=True):
+    def grid_plots(self, cluster_plots=True):
 
         nr = len(self.rs)
         nf = len(self.freqs)
@@ -129,8 +129,52 @@ class Fingerprinter:
 
         met_fig.tight_layout()
 
+    def grid_plot(self, r, freq):
+        feats = self.compute_features(r, freq)
+        D = self.compute_distance_matrix(feats)
+        predict = self.kmeans(D)
+
+        tsne_fig, tsne_ax = plt.subplot()
+        umap_fig, umap_ax = plt.subplot()
+
+        tsne = TSNE(n_components=3).fit_transform(D)
+        tsne_ax.scatter(tsne[:, 0], tsne[:, 1], c=predict)
+        umapper = umap.UMAP().fit(D)
+        umap.plot.points(umapper, labels=predict, ax=umap_ax)
+
+        tsne_ax.set_title(f"r={r}, fmax={freq}")
+        umap_ax.set_title(f"r={r}, fmax={freq}")
+
+        tsne_fig.tight_layout()
+        umap_fig.tight_layout()
 
 
+    def cluster_metrics(self):
+        assert len(self.freqs) == 1
+        nr = len(self.rs)
+
+        ground_truth_labels = self.ground_truth_labels()
+
+        rand_scores = np.zeros(nr, np.float32)
+        ami_scores = np.zeros(nr, np.float32)
+
+        fig, ax = plt.subplots(2)
+
+        for i, r in enumerate(self.rs):
+            feats = self.compute_features(r, self.freqs[0])
+            D = self.compute_distance_matrix(feats)
+            predict = self.kmeans(D)
+            rand_scores[i] = adjusted_rand_score(ground_truth_labels, predict)
+            ami_scores[i] = adjusted_mutual_info_score(ground_truth_labels, predict)
+
+        ax[0].plot(self.rs, rand_scores)
+        ax[0].set_xlabel("SVs kept")
+        ax[0].set_ylabel("Adjusted Rand Score")
+
+        ax[1].plot(self.rs, ami_scores)
+        ax[1].set_ylabel("Adjusted MI Score")
+
+        fig.suptitle(f"Frequency range: [0, {self.freqs[0]}] Hz\n{self.nclusters} units")
 
 def reconstruct_from_svd_clip(svd_u, svd_s, svd_v):
     """
@@ -149,10 +193,21 @@ def reconstruct_from_svd_clip(svd_u, svd_s, svd_v):
     return np.fft.irfft(W)
 
 
-f = Fingerprinter(wfs, reconstruct_from_svd_clip, np.arange(10), np.arange(5, 15), np.arange(1000, 15000, 1000))
+f = Fingerprinter(wfs, reconstruct_from_svd_clip,  np.arange(20), np.arange(2, 12), [8000])
 
-f.run(cluster_plots=False)
+f.cluster_metrics()
 
+# generate the stack of hankel traj matrices
+def hank_stack(w):
+    ntr, ns = w.shape
+    L = int(ntr // 2)
+    K = int(ntr - L)
+
+    W = np.fft.rfft(w)
+    freqs = np.fft.rfftfreq(ns, d=1/30_000)
+
+    hanks = np.stack([hank_mat(W, f, L, K) for f in range(0, len(freqs))])
+    return hanks
 
 
 
